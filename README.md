@@ -266,35 +266,63 @@ nano config/global.cfg
 
 ```ini
 [basic]
-# Database selection
-use_database = postgresql 
+# Select the database type: 'mysql' or 'postgresql'
+use_database = postgresql
 
-# Waveform data source
-waveform_source = fdsn     # or 'sds' for local archives
-# archive_path is now in [archive] section
+# --- Data Source Settings ---
 
-# Inventory source
-inventory_source = fdsn    # or 'local'
-# inventory_path is now in [inventory] section
+# 1. Waveform Source
+# Select the source for waveform data:
+# 'fdsn' = Download from the FDSN client specified in [client]
+# 'sds'  = Load from a local SDS archive specified in [archive]
+waveform_source = fdsn
 
-# Output directories
-outputpsd = /your/directory/path/sqes_output/psd_npz
-outputpdf = /your/directory/path/sqes_output/pdf_plots
-outputsignal = /your/directory/path/sqes_output/signal_plots
-outputmseed = /your/directory/path/sqes_output/mseed_files
+# 2. Inventory Source
+# Select the source for inventory data: 
+# 'fdsn' = Download from the FDSN client specified in [client]
+# 'local'  = Load from a local inventory files specified in [inventory]
+inventory_source = local
 
-# Performance
-cpu_number_used = 16       # Number of parallel processes
-spike_method = fast        # 'fast' (NumPy) or 'efficient' (Pandas)
+# --- Output Paths ---
+# These are the root directories where output files will be saved
+outputpsd = /path/to/your/output/psd_npz
+outputpdf = /path/to/your/output/pdf_plots
+outputsignal = /path/to/your/output/signal_plots
+outputmseed = /path/to/your/output/mseed_files
 
-# RAM Management
-ram_limit_gb = 24.0        # Max system RAM to usage (GB)
-ram_station_default_gb = 15.0 # Estimate per station if unknown
-ram_allocation_delay = 20  # Seconds to reserve RAM for phantom load
-ram_soft_start_initial_worker = 4 # Initial workers
-ram_soft_start_interval = 10      # Seconds between adding workers
+# --- Performance Settings ---
+# Leave blank to use the default (approx. 1/3 of your CPUs)
+# Or, set a specific number of processes, e.g., 16
+cpu_number_used = 16
 
-# Sensor metadata URL
+# RAM Usage Limit (in GB)
+# Check available RAM before starting a new worker task. 
+# If used RAM exceeds this limit, the system will wait.
+# Real used RAM could be maximum +15% to this number, be aware.
+# Leave blank or set to 0 to disable.
+ram_limit_gb = 120
+
+# RAM Soft Start Settings
+# Initial number of workers to start with
+ram_soft_start_initial = 8
+# Time interval (in seconds) to add +1 worker if RAM is safe
+ram_soft_start_interval = 0.5
+
+# Station RAM Prediction Settings
+# Default RAM estimate (in GB) for stations not listed in stations.cfg
+ram_station_default_gb = 10
+
+# Time (in seconds) that a new process is considered "loading" RAM.
+# During this time, its estimated RAM is added as "phantom load".
+ram_allocation_delay = 10
+
+# Choice of spike algorithm:
+# 'fast'      = NumPy method. Very fast, but high RAM usage.
+# 'efficient' = Pandas method. Very slow, but low RAM usage.
+spike_method = fast
+
+# The URL to scrape for station sensor info.
+# {station_code} will be replaced with the station name.
 sensor_update_url = http://your.web.source/{station_code}
 station_update_url = http://your.web.source/stations.json
 latency_update_url = http://your.web.source/stations.json
