@@ -135,6 +135,7 @@ def check_configurations():
             all_ok = False
 
     # --- 5. Check QC Thresholds ---
+    logger.info("")
     logger.info("--- QC Analysis Thresholds ---")
     try:
         from .config_loader import load_qc_thresholds
