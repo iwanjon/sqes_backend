@@ -57,7 +57,8 @@ def check_configurations():
                 password=client_creds.get('password')
             )
             # Perform a simple, fast test query
-            fdsn_client.get_events(starttime=UTCDateTime(2020,1,1,0,0,0), endtime=UTCDateTime(2020,1,1,1,0,0))
+            fdsn_client.get_waveforms(network="IA", station="AAFM", location="", channel="SH*",
+                starttime=UTCDateTime(2026,1,1,0,0,0), endtime=UTCDateTime(2026,1,1,0,1,0))
             logger.info("✅ FDSN Client connection: OK")
             logger.info("")
             
