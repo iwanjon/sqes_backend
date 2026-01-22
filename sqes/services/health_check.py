@@ -45,7 +45,7 @@ def check_configurations():
             client_creds = load_config(section='client')
             
             # Format credentials nicely
-            for key, value in sorted(client_creds.items()):
+            for key, value in client_creds.items():
                 if "password" in key.lower() and value:
                     logger.info(f"  • {key:25s} : *******{value[-1:]}")
                 else:
@@ -57,7 +57,7 @@ def check_configurations():
                 password=client_creds.get('password')
             )
             # Perform a simple, fast test query
-            fdsn_client.get_events(starttime=UTCDateTime(2020,1,1,0,0,0), endtime=UTCDateTime(2020,1,1,0,0,1))
+            fdsn_client.get_events(starttime=UTCDateTime(2020,1,1,0,0,0), endtime=UTCDateTime(2020,1,1,1,0,0))
             logger.info("✅ FDSN Client connection: OK")
             logger.info("")
             
