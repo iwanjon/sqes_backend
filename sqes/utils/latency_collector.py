@@ -1,12 +1,44 @@
 import logging
 import pandas as pd
 import re
+import json
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from typing import Dict, Any
 
 from sqes.services.db_pool import DBPool
 from sqes.services.repository import QCRepository
 
 logger = logging.getLogger(__name__)
+
+def _create_robust_session(max_retries=3, backoff_factor=0.5):
+    """
+    Create an HTTP session with retry logic for handling transient failures.
+    
+    Args:
+        max_retries: Maximum number of retry attempts
+        backoff_factor: Multiplier for exponential backoff between retries
+    
+    Returns:
+        requests.Session: Configured session with retry logic
+    """
+    session = requests.Session()
+    
+    # Configure retry strategy for connection errors, read errors, and specific HTTP codes
+    retry_strategy = Retry(
+        total=max_retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=[429, 500, 502, 503, 504],  # Retry on these HTTP statuses
+        allowed_methods=["GET"],  # Only retry GET requests
+        raise_on_status=False  # Don't raise exceptions, we'll handle them
+    )
+    
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    
+    return session
 
 def _time_to_seconds(time_str):
     # Handle 'NA' case
@@ -67,12 +99,54 @@ def latency_collector(db_type: str, db_creds: Dict[str, Any], latency_url: str):
         return
 
     logger.info("--- Collecting latency data")
+    
+    # 2. Fetch data with robust error handling
     try:
-        # We can read straight to json instead of dataframe first if we want, but sticking to logic
-        df = pd.read_json(latency_url)
+        session = _create_robust_session(max_retries=3, backoff_factor=0.5)
+        
+        # Set reasonable timeout: (connect timeout, read timeout)
+        response = session.get(latency_url, timeout=(10, 30))
+        
+        # Check if request was successful
+        if response.status_code != 200:
+            logger.error(f"Failed to fetch latency URL: HTTP {response.status_code}")
+            return
+        
+        # Validate that we got content
+        if not response.content:
+            logger.error("Failed to fetch latency URL: Empty response")
+            return
+        
+        # Try to parse JSON with explicit error handling
+        try:
+            data = response.json()
+        except json.JSONDecodeError as json_err:
+            logger.error(f"Failed to parse latency URL: Invalid JSON - {json_err}")
+            logger.debug(f"Response content preview: {response.text[:500]}")
+            return
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(data)
+        
+        # Validate expected structure
+        if 'features' not in df.columns:
+            logger.error("Failed to parse latency URL: Missing 'features' column in response")
+            return
+            
+    except requests.exceptions.Timeout:
+        logger.error("Failed to fetch latency URL: Request timed out")
+        return
+    except requests.exceptions.ConnectionError as conn_err:
+        logger.error(f"Failed to fetch latency URL: Connection error - {conn_err}")
+        return
+    except requests.exceptions.RequestException as req_err:
+        logger.error(f"Failed to fetch latency URL: {req_err}")
+        return
     except Exception as e:
         logger.error(f"Failed to fetch or parse latency URL: {e}")
         return
+    finally:
+        session.close()
 
     logger.info(f"--- Processing {len(df)} stations from source")
     
