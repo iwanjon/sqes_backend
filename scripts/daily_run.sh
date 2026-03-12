@@ -32,7 +32,7 @@ echo "Using Python: $PYTHON_EXEC"
 # -v for INFO logging
 # --sensor-update to keep metadata fresh (optional but recommended)
 # stdout is discarded (Python logs to logs/log/ automatically), stderr goes to logs/error/
-$PYTHON_EXEC sqes_cli.py --date "$DATE_TO_PROCESS" --sensor-update -v > /dev/null 2>> logs/error/cron_$DATE_TO_PROCESS.err
+$PYTHON_EXEC sqes_cli.py --date "$DATE_TO_PROCESS" --station-update -v > /dev/null 2>> logs/error/cron_$DATE_TO_PROCESS.err
 
 EXIT_CODE=$?
 

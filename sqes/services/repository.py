@@ -385,7 +385,7 @@ class QCRepository:
     def get_all_stations_basic(self):
         """Fetches basic station information (code, latitude, longitude)."""
         if self.db_type == 'postgresql':
-            query = "SELECT code, latitude, longitude, network, province, location, upt, digitizer_type, communication_type FROM stations"
+            query = "SELECT code, latitude, longitude, network, province, location, year, upt, balai, digitizer_type, communication_type FROM stations"
         else:  # mysql
             query = "SELECT kode_sensor AS code, latitude, longitude FROM tb_slmon"
         return self.pool.execute(query)
@@ -394,8 +394,8 @@ class QCRepository:
         """Inserts a new station into the stations table."""
         if self.db_type == 'postgresql':
             query = """
-                INSERT INTO stations (code, network, latitude, longitude, province, location, upt, digitizer_type, communication_type)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO stations (code, network, latitude, longitude, province, location, year, upt, balai, digitizer_type, communication_type)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             args = (
                 station_data['code'],
@@ -404,7 +404,9 @@ class QCRepository:
                 station_data['longitude'],
                 station_data.get('province'),
                 station_data.get('location'),
+                station_data.get('year'),
                 station_data.get('upt'),
+                station_data.get('balai'),
                 station_data.get('digitizer_type'),
                 station_data.get('communication_type')
             )
