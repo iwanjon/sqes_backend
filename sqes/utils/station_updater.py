@@ -40,7 +40,7 @@ def update_station_table(db_type: str, db_creds: Dict[str, Any], update_url: str
         stations_result = repo.get_all_stations_basic()
         stations_db = pd.DataFrame(stations_result, columns=[
             'code', 'latitude', 'longitude', 'network', 'province', 
-            'location', 'upt', 'digitizer_type', 'communication_type'
+            'location', 'year', 'upt', 'balai', 'digitizer_type', 'communication_type'
         ])
             
     except Exception as e:
