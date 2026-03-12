@@ -106,7 +106,9 @@ def update_station_table(db_type: str, db_creds: Dict[str, Any], update_url: str
                                 'location': location,
                                 'upt': upt,
                                 'digitizer_type': digitizer_type,
-                                'communication_type': communication_type
+                                'communication_type': communication_type,
+                                'year': 0,
+                                'balai': 0
                             })
                             insert_success += 1
                         else:
