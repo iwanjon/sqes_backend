@@ -4,20 +4,21 @@ channels:
   - defaults
 dependencies:
   # --- Core Python ---
-  - python=3.10
+  - python=3.12
   - pip
 
   # --- Scientific & Data ---
   # obspy is the main dependency for all seismology
   - obspy
-  - pandas=2.0.3
+  - pandas
   - numpy
   - scipy
   - matplotlib
   - requests
-  - sqlalchemy=1.4.51
+  - sqlalchemy
   - tqdm
   - lxml
+  - psutil
 
   # --- Database Connectors ---
   # For PostgreSQL

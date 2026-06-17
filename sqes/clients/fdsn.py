@@ -17,6 +17,7 @@ def get_waveforms(client: FDSNClient, net: str, sta: str, loc: str,
     """
     for channel_prefix in channel_prefixes:
         channel_code = f"{channel_prefix}{c}"
+        print(f"   {channel_prefix}  {channel_code}  {loc}   {sta} ---------------")
         try:
             with warnings.catch_warnings(record=True) as caught_warnings:
                 warnings.simplefilter("always")

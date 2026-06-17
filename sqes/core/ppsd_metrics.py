@@ -1,7 +1,8 @@
 import numpy as np
 from numpy import polyfit
 from obspy import Stream, Trace, Inventory
-from obspy.signal import PPSD
+# from obspy.signal import PPSD
+from ppsd_accel.custom_ppsd import CustomPPSD as PPSD
 from typing import Optional, cast
 import logging
 import warnings
@@ -47,7 +48,7 @@ def _create_ppsd_object(sig: Stream, inventory: Optional[Inventory] = None, npz_
             _id = tr.id
             with warnings.catch_warnings(record=True) as caught_warnings:
                 warnings.simplefilter("always")
-                ppsds_object = PPSD(tr.stats, inventory)
+                ppsds_object = PPSD(tr.stats, inventory, special_handling="accelerometer")
                 ppsds_object.add(tr)
                 
                 # Collect unique warnings

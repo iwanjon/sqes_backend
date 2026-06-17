@@ -69,6 +69,10 @@ def init_worker(db_credentials, basic_config, log_level, log_file_path,
         logger.error(f"Failed to initialize Worker DB Pool: {e}")
         raise e
         
+    # Mock SIGALRM if running on Windows
+    # if sys.platform == "win32" and not hasattr(signal, "SIGALRM"):
+    #     signal.SIGALRM = 14  # standard Unix value, used here as a dummy placeholder
+        
     # 3. Handle Signals
     signal.signal(signal.SIGALRM, _handle_timeout)
     
@@ -226,7 +230,6 @@ def process_station_data(sta_tuple):
                 raise ConnectionError("FDSN client for waveforms was not initialized.")
             data_client = fdsn_client  # Use FDSN client
 
-        
         # --- Validate Inventory Config ---
         if inventory_source == 'local' and not inventory_path:
             logger.error(f"'inventory_source' is 'local' but inventory path is not set for tag '{inventory_tag}'. Worker exiting.")
@@ -245,7 +248,6 @@ def process_station_data(sta_tuple):
     # --- UPDATED: Main Loop ---
     for ch in channel_components:
         id_kode = f"{kode}_{ch}_{tgl}"
-        logger.warning(f"{id_kode} - Skipped with default parameters")
         
         def log_default_and_continue(base_metrics=None, cha=ch, reason=""):
             if base_metrics:
@@ -275,14 +277,10 @@ def process_station_data(sta_tuple):
             else: # 'fdsn' or default
                 if not fdsn_client:
                      raise ConnectionError("FDSN client was not initialized (check config).")
-                
-                logger.error(f"!! {ch} {channel_prefixes}ch!")
                 sig = fdsn.get_waveforms(
                     fdsn_client, network, kode, location, 
                     channel_prefixes, time0, time1, ch
                 )
-                
-                logger.info(f"{sig}   {channel_prefixes}  {kode}  {location}   {ch}")
         
         except TimeoutError:
             logger.error(f"!! {id_kode} FDSN download timeout!")
@@ -317,7 +315,6 @@ def process_station_data(sta_tuple):
                 inventory_fdsn_client, tr.stats.network, tr.stats.station, 
                 tr.stats.location, tr.stats.channel, time0
             )
-
         
         if not inv:
             logger.warning(f"!! {id_kode} Got data but NO INVENTORY (source: {inventory_source}). Skipping.")

@@ -107,6 +107,8 @@ def run_single_day(date_str: str, ppsd: bool, flush: bool, mseed: bool,
         if stations:
             # We have a specific list: get tuples for them.
             logger.info(f"Querying for {len(stations)} specific stations...")
+            logger.info(network)
+            logger.info(stations)
             data = repo.get_station_tuples(stations, network=network) 
         else:
             # No list: get all unprocessed stations.
@@ -166,6 +168,7 @@ def run_single_day(date_str: str, ppsd: bool, flush: bool, mseed: bool,
                 
                 active_tasks = [] # List of AsyncResult objects
                 total_stations = len(data)
+                print(f" datass  {data}")
                 submitted_count = 0
                 
                 # Iterator management
@@ -185,6 +188,7 @@ def run_single_day(date_str: str, ppsd: bool, flush: bool, mseed: bool,
                     if pending_station is None and submitted_count < total_stations:
                         try:
                             pending_station = next(data_iterator)
+                            print(f" pending stastion {pending_station}")
                         except StopIteration:
                             pass
                             
