@@ -121,16 +121,6 @@ Examples:
     )
 
     # --- Other Optional Flags ---
-    
-    parser.add_argument(
-        "--prefix",
-        type=str,
-        default=None,
-        help="Optional: Process only a specific channel prefix (e.g., SH or HH). Case and whitespace insensitive."
-    )
-    
-    ########################################
-    
     parser.add_argument(
         "--ppsd",
         action="store_true",
@@ -366,8 +356,7 @@ if __name__ == "__main__":
             flush=args.flush,
             log_level=log_level,
             log_file_path=log_file_path,
-            basic_config=basic_config,
-            target_prefix=args.prefix
+            basic_config=basic_config
         )
             
     except Exception as e:

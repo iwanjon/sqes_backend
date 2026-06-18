@@ -28,8 +28,8 @@ class QCRepository:
                     SUBSTRING(channel, 1, 2) AS channel_prefix,
                     SUBSTRING(channel, 3, 1) AS channel_component,
                     CASE SUBSTRING(channel, 1, 2) 
-                        WHEN 'SH' THEN 4 WHEN 'BH' THEN 2 
-                        WHEN 'HH' THEN 3 WHEN 'HN' THEN 1 
+                        WHEN 'SH' THEN 1 WHEN 'BH' THEN 2 
+                        WHEN 'HH' THEN 3 WHEN 'HN' THEN 4 
                         ELSE 5 
                     END AS sort_order,
                     -- Rank locations: '00' is best, then '', then others.

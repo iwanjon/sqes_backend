@@ -48,7 +48,7 @@ GW_CONTEXT: Dict[str, Any] = {}
 
 def init_worker(db_credentials, basic_config, log_level, log_file_path,
                 tgl, time0, time1, client_credentials, output_paths,
-                pdf_trigger, mseed_trigger, qc_thresholds):
+                pdf_trigger, mseed_trigger, qc_thresholds, target_prefix=None):
     """
     Initializer for worker processes.
     Sets up DBPool, Logging, and Context once per process.
@@ -82,7 +82,8 @@ def init_worker(db_credentials, basic_config, log_level, log_file_path,
         'output_paths': output_paths,
         'pdf_trigger': pdf_trigger,
         'mseed_trigger': mseed_trigger,
-        'qc_thresholds': qc_thresholds
+        'qc_thresholds': qc_thresholds,
+        'target_prefix': target_prefix
     })
 
 
@@ -116,9 +117,32 @@ def process_station_data(sta_tuple):
          station_sources) = sta_tuple
          
         location = location or ''
-        channel_prefixes = (channel_prefixes_str or '').split(',')
+        # channel_prefixes = (channel_prefixes_str or '').split(',')
+        raw_prefixes = (channel_prefixes_str or '').split(',')
         channel_components = (channel_components_str or '').split(',')
 
+
+        ###########################################
+        # --- NEW PREFIX FILTERING LOGIC ---
+        target_prefix = GW_CONTEXT.get('target_prefix')
+        
+        if target_prefix:
+            # Remove spaces and force uppercase (e.g., " hH " -> "HH")
+            clean_target = target_prefix.replace(" ", "").upper()
+            
+            channel_prefixes = [
+                p.strip() for p in raw_prefixes 
+                if p.strip().upper() == clean_target
+            ]
+            
+            # If the filter removes all prefixes, skip this station gracefully
+            if not channel_prefixes:
+                logger = get_station_logger(kode)
+                logger.info(f"Skipping {network}.{kode}: Requested prefix '{target_prefix}' not found in station's configured prefixes ({channel_prefixes_str})")
+                return
+        else:
+            # If no --prefix flag was used, just clean up whitespace
+            channel_prefixes = [p.strip() for p in raw_prefixes if p.strip()]
         
     except Exception as e:
         print(f"!! FATAL: Error unpacking station tuple {sta_tuple}: {e}", flush=True)
@@ -293,6 +317,72 @@ def process_station_data(sta_tuple):
             log_default_and_continue(reason="Data Acquisition Error")
             continue
 
+# #####################################################
+
+
+
+# # --- UPDATED: Main Loop ---
+#     for ch in channel_components:
+#         for prefix in channel_prefixes:
+#             # Combine them right away so we process them completely independently
+#             channel_code = f"{prefix}{ch}"
+            
+#             # Update id_kode to use channel_code so DB entries don't overwrite each other
+#             id_kode = f"{kode}_{channel_code}_{tgl}"
+#             logger.warning(f"{id_kode} - Skipped with default parameters")
+            
+#             def log_default_and_continue(base_metrics=None, cha=channel_code, reason=""):
+#                 if base_metrics:
+#                     metrics = base_metrics
+#                 else:
+#                     metrics = {'rms': '0', 'ratioamp': '0', 'psdata': '0', 'ngap': '1', 'nover': '0', 'num_spikes': '0'}
+                
+#                 try:
+#                     repo.check_and_delete_qc_detail(id_kode, tgl)
+#                     repo.insert_default_qc_detail(id_kode, kode, tgl, cha, metrics)
+#                     logger.warning(f"{id_kode} - Skipped with default parameters. Reason: {reason}")
+#                 except Exception as e:
+#                     logger.error(f"{id_kode} - FAILED to log default parameters: {e}")
+#                 time.sleep(0.5)
+
+#             # --- 2. Load/Download Waveforms ---
+#             logger.debug(f"{id_kode} Acquiring waveforms (method: {waveform_source})...")
+#             sig = None
+            
+#             try:
+#                 if waveform_source == 'sds':
+#                     sig = sds.get_waveforms(
+#                         cast(SDSClient, data_client), # Cast for Pylance
+#                         network, kode, location, 
+#                         [prefix], time0, time1, ch # <-- Pass prefix as a list of 1 so SDS doesn't break
+#                     )
+#                 else: # 'fdsn' or default
+#                     if not fdsn_client:
+#                          raise ConnectionError("FDSN client was not initialized (check config).")
+                    
+#                     logger.error(f"!! {ch} {prefix}ch!")
+                    
+#                     # Notice we are now calling it with the single channel_code
+#                     sig = fdsn.get_waveforms(
+#                         fdsn_client, network, kode, location, 
+#                         channel_code, time0, time1
+#                     )
+                    
+#                     logger.info(f"{sig}   {channel_code}  {kode}  {location}   {ch}")
+            
+#             except TimeoutError:
+#                 logger.error(f"!! {id_kode} FDSN download timeout!")
+#                 log_default_and_continue(reason="Download Timeout")
+#                 continue
+#             except Exception as e:
+#                 logger.error(f"!! {id_kode} data acquisition error: {e}")
+#                 log_default_and_continue(reason="Data Acquisition Error")
+#                 continue
+
+#             # ... (The rest of your code block stays exactly the same, just indented once) ...
+# #####################################################
+
+
         if sig is None or sig.count() == 0:
             logger.info(f"!! {id_kode} No Data found (source: {waveform_source})")
             log_default_and_continue(reason="No Data")
@@ -326,6 +416,7 @@ def process_station_data(sta_tuple):
         
         # --- 3. Save Waveform & Plot ---
         try:
+            print(dir(tr.stats))
             signal.alarm(300) # 3 min timeout
             cha = tr.stats.channel
             mseed_naming_code = f"{outputmseed}/{kode}_{cha[-1]}.mseed"

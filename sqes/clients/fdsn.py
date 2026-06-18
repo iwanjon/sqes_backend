@@ -51,6 +51,48 @@ def get_waveforms(client: FDSNClient, net: str, sta: str, loc: str,
     logger.debug(f"All FDSN prefixes failed for {net}.{sta}.{loc}.*{c}")
     return None
 
+
+# def get_waveforms(client: FDSNClient, net: str, sta: str, loc: str, 
+#                        channel_code: str, time0: UTCDateTime, 
+#                        time1: UTCDateTime) -> Optional[Stream]:
+#     """
+#     Attempts to download waveform data from an FDSN client for a specific channel.
+#     Returns the Stream object if successful, else None.
+#     """
+#     print(f"   {channel_code}  {loc}   {sta} ---------------")
+#     try:
+#         with warnings.catch_warnings(record=True) as caught_warnings:
+#             warnings.simplefilter("always")
+#             print(f" {net} goriii, {sta}, {loc}, {channel_code}, {time0}, {time1}")
+#             st = client.get_waveforms(net, sta, loc, channel_code, time0, time1)
+#             if st and st.count() > 0:
+#                 if st.count() > 1:
+#                     # Use the helper from utils.py
+#                     loc_ = utils.get_location_info(st)
+#                     st = st.select(location=loc_[0])
+#                 first_trace = cast(Trace, st[0])
+
+#                 # Collect unique warnings
+#                 warning_counts = {}
+#                 for w in caught_warnings:
+#                     msg = str(w.message).replace('\n', ' ')
+#                     warning_counts[msg] = warning_counts.get(msg, 0) + 1
+                
+#                 # Log each unique warning once
+#                 for msg, count in warning_counts.items():
+#                     if count > 1:
+#                         logger.warning(f"{net}.{sta}.{loc}.{channel_code} Stream Warning: {msg} (occurred {count} times)")
+#                     else:
+#                         logger.warning(f"{net}.{sta}.{loc}.{channel_code} Stream Warning: {msg}")
+                
+#                 logger.debug(f"Success: Got waveform {first_trace.id} from FDSN")
+#                 return st
+#     except Exception:
+#         logger.debug(f"No data for {net}.{sta}.{loc}.{channel_code} from FDSN")
+    
+#     return None
+
+
 def get_inventory(client: FDSNClient, net: str, sta: str, 
                        loc: str, cha: str, time0: UTCDateTime) -> Optional[Inventory]:
     """
