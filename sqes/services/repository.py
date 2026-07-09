@@ -125,10 +125,12 @@ class QCRepository:
                         diff20_100, diff5_20, diff5
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                'get_qc_details': "SELECT * FROM tb_qcdetail WHERE tanggal = %s AND kode = %s",
                 'get_station_info': "SELECT kode_sensor, lokasi_sensor, sistem_sensor FROM tb_slmon WHERE kode_sensor = %s",
-                'check_analysis': "SELECT * FROM tb_qcres WHERE tanggal_res = %s AND kode_res = %s",
-                'delete_analysis': "DELETE FROM tb_qcres WHERE tanggal_res = %s AND kode_res = %s",
+                'check_analysis': "SELECT * FROM tb_qcres WHERE tanggal_res = %s AND kode_res = %s AND channel_prefix = %s",
+                'delete_analysis': "DELETE FROM tb_qcres WHERE tanggal_res = %s AND kode_res = %s AND channel_prefix = %s",
+                # Note the LIKE operator here for prefix matching
+                'get_qc_details': "SELECT * FROM tb_qcdetail WHERE tanggal = %s AND kode = %s AND komp LIKE %s",
+                
                 'insert_analysis': """
                     INSERT INTO tb_qcres 
                     (kode_res, tanggal_res, percqc, kualitas, tipe, keterangan, channel_prefix) 
@@ -169,10 +171,12 @@ class QCRepository:
                         sp_percentage
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                'get_qc_details': "SELECT * FROM stations_qc_details WHERE date = %s AND code = %s",
-                'get_station_info': "SELECT network, code, location, network_group FROM stations WHERE code = %s",
-                'check_analysis': "SELECT * FROM stations_data_quality WHERE date = %s AND code = %s",
-                'delete_analysis': "DELETE FROM stations_data_quality WHERE date = %s AND code = %s",
+                'get_station_info': "SELECT network, code, location, network_group FROM stations WHERE code = %s",                
+                'check_analysis': "SELECT * FROM stations_data_quality WHERE date = %s AND code = %s AND channel_prefix = %s",
+                'delete_analysis': "DELETE FROM stations_data_quality WHERE date = %s AND code = %s AND channel_prefix = %s",
+                # Note the LIKE operator here for prefix matching
+                'get_qc_details': "SELECT * FROM stations_qc_details WHERE date = %s AND code = %s AND channel LIKE %s",
+                
                 'insert_analysis': """
                     INSERT INTO stations_data_quality 
                     (code, date, quality_percentage, result, details, channel_prefix) 
@@ -348,19 +352,37 @@ class QCRepository:
         query = self._get_query('get_station_info')
         return self.pool.execute(query, args=(station_code,))
 
-    def get_qc_details_for_station(self, tgl: str, station_code: str):
+    # def get_qc_details_for_station(self, tgl: str, station_code: str):
+    #     query = self._get_query('get_qc_details')
+    #     return self.pool.execute(query, args=(tgl, station_code))
+    
+    def get_qc_details_for_station(self, tgl: str, station_code: str, channel_prefix: str = ""):
         query = self._get_query('get_qc_details')
-        return self.pool.execute(query, args=(tgl, station_code))
+        # If prefix is provided, make it a pattern (e.g., 'BH%'), otherwise get all ('%')
+        pattern = f"{channel_prefix}%" if channel_prefix else "%"
+        return self.pool.execute(query, args=(tgl, station_code, pattern))
 
-    def flush_analysis_result(self, tgl: str, station_code: str):
-        """Checks and deletes a previous analysis result."""
+    # def flush_analysis_result(self, tgl: str, station_code: str):
+    #     """Checks and deletes a previous analysis result."""
+    #     check_query = self._get_query('check_analysis')
+    #     data = self.pool.execute(check_query, args=(tgl, station_code))
+        
+    #     if data:
+    #         logger.info(f"Analysis data for {station_code} on {tgl} exists, flushing.")
+    #         delete_query = self._get_query('delete_analysis')
+    #         self.pool.execute(delete_query, args=(tgl, station_code), commit=True)
+    #         return True
+    #     return False
+    
+    def flush_analysis_result(self, tgl: str, station_code: str, channel_prefix: str):
+        """Checks and deletes a previous analysis result for a specific prefix."""
         check_query = self._get_query('check_analysis')
-        data = self.pool.execute(check_query, args=(tgl, station_code))
+        data = self.pool.execute(check_query, args=(tgl, station_code, channel_prefix))
         
         if data:
-            logger.info(f"Analysis data for {station_code} on {tgl} exists, flushing.")
+            logger.info(f"Analysis data for {station_code} ({channel_prefix}) on {tgl} exists, flushing.")
             delete_query = self._get_query('delete_analysis')
-            self.pool.execute(delete_query, args=(tgl, station_code), commit=True)
+            self.pool.execute(delete_query, args=(tgl, station_code, channel_prefix), commit=True)
             return True
         return False
 
