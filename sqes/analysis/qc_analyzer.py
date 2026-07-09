@@ -224,6 +224,7 @@ def run_qc_analysis(
         
         percqc_list = []
         ket = []
+        processed_prefixes = set() # NEW: Keep track of prefixes processed
         
         # 4. Loop through each component (E, N, Z)
         for qc_row in dataqc:
@@ -231,6 +232,17 @@ def run_qc_analysis(
             try:
                 if db_type == 'mysql':
                     komp = qc_row[4]
+                    # ... rest of mysql mapping
+        
+        # percqc_list = []
+        # ket = []
+        
+        # # 4. Loop through each component (E, N, Z)
+        # for qc_row in dataqc:
+        #     # 5. Map columns based on DB type
+        #     try:
+        #         if db_type == 'mysql':
+        #             komp = qc_row[4]
                     rms = float(qc_row[5])
                     ratioamp = float(qc_row[6])
                     avail = float(qc_row[7])
@@ -256,9 +268,17 @@ def run_qc_analysis(
                 else:
                     logger.error(f"Unknown database type: {db_type}")
                     continue
+            # except (ValueError, TypeError, IndexError) as e:
+            #     logger.error(f"Error parsing QC row for {kode}: {e}. Row: {qc_row}")
+            #     continue
+            
             except (ValueError, TypeError, IndexError) as e:
                 logger.error(f"Error parsing QC row for {kode}: {e}. Row: {qc_row}")
                 continue
+            
+            # NEW: Extract the 2-letter prefix (e.g., 'BH' from 'BHE')
+            if isinstance(komp, str) and len(komp) >= 2:
+                processed_prefixes.add(komp[:2])
             
             # 6. Validate metrics
             validation_issues = validate_qc_metrics(
@@ -361,8 +381,28 @@ def run_qc_analysis(
             else:
                 score = aggregate_station_score(percqc_list, 'p25')
         
+        # # 10. Classify quality and store results
+        # kualitas = check_qc(score)
+        
+        # repo.insert_qc_analysis_result(
+        #     kode,
+        #     tanggal,
+        #     str(round(float(score), 2)),
+        #     kualitas,
+        #     tipe,
+        #     ket
+        # )
+        
+        # logger.info(
+        #     f"{network}.{kode} ({tipe}) QC ANALYSIS FINISH "
+        #     f"(Score: {score:.2f}, Quality: {kualitas}, Components: {len(percqc_list)})"
+        # )
+        
+        
+        
         # 10. Classify quality and store results
         kualitas = check_qc(score)
+        final_prefix = ",".join(sorted(processed_prefixes)) # E.g., 'BH' or 'BH,HN'
         
         repo.insert_qc_analysis_result(
             kode,
@@ -370,13 +410,15 @@ def run_qc_analysis(
             str(round(float(score), 2)),
             kualitas,
             tipe,
-            ket
+            ket,
+            channel_prefix=final_prefix # NEW ARGUMENT PASSED HERE
         )
         
         logger.info(
             f"{network}.{kode} ({tipe}) QC ANALYSIS FINISH "
-            f"(Score: {score:.2f}, Quality: {kualitas}, Components: {len(percqc_list)})"
+            f"(Score: {score:.2f}, Quality: {kualitas}, Components: {len(percqc_list)}, Prefix: {final_prefix})"
         )
+        
         time.sleep(0.5)
 
     time.sleep(0.5)

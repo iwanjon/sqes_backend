@@ -138,16 +138,6 @@ CREATE SEQUENCE stations_data_quality_id_seq
     NO MAXVALUE
     CACHE 1;
 
-CREATE TABLE stations_data_quality (
-    id integer NOT NULL DEFAULT nextval('stations_data_quality_id_seq'::regclass),
-    date date,
-    code text,
-    quality_percentage numeric(5,2),
-    result text,
-    details text,
-    PRIMARY KEY (id)
-);
-
 -- CREATE TABLE stations_data_quality (
 --     id integer NOT NULL DEFAULT nextval('stations_data_quality_id_seq'::regclass),
 --     date date,
@@ -155,11 +145,21 @@ CREATE TABLE stations_data_quality (
 --     quality_percentage numeric(5,2),
 --     result text,
 --     details text,
---     channel_prefix text, -- NEW COLUMN ADDED HERE
 --     PRIMARY KEY (id)
 -- );
 
--- COMMENT ON COLUMN stations_data_quality.channel_prefix IS 'Channel prefixes processed for this score (e.g., BH, HN)';
+CREATE TABLE stations_data_quality (
+    id integer NOT NULL DEFAULT nextval('stations_data_quality_id_seq'::regclass),
+    date date,
+    code text,
+    quality_percentage numeric(5,2),
+    result text,
+    details text,
+    channel_prefix text, -- NEW COLUMN ADDED HERE
+    PRIMARY KEY (id)
+);
+
+COMMENT ON COLUMN stations_data_quality.channel_prefix IS 'Channel prefixes processed for this score (e.g., BH, HN)';
 
 COMMENT ON TABLE stations_data_quality IS 'Final quality scores and classifications per station per day';
 COMMENT ON COLUMN stations_data_quality.quality_percentage IS 'Overall quality score (0-100%)';
@@ -230,4 +230,4 @@ ALTER SEQUENCE latency_id_seq OWNED BY stations_sensor_latency.id;
 ALTER SEQUENCE stations_data_quality_id_seq OWNED BY stations_data_quality.id;
 
 
--- ALTER TABLE stations_data_quality ADD COLUMN channel_prefix text;
+ALTER TABLE stations_data_quality ADD COLUMN channel_prefix text;

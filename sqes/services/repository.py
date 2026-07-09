@@ -131,8 +131,8 @@ class QCRepository:
                 'delete_analysis': "DELETE FROM tb_qcres WHERE tanggal_res = %s AND kode_res = %s",
                 'insert_analysis': """
                     INSERT INTO tb_qcres 
-                    (kode_res, tanggal_res, percqc, kualitas, tipe, keterangan) 
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    (kode_res, tanggal_res, percqc, kualitas, tipe, keterangan, channel_prefix) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
             },
             'postgresql': {
@@ -175,8 +175,8 @@ class QCRepository:
                 'delete_analysis': "DELETE FROM stations_data_quality WHERE date = %s AND code = %s",
                 'insert_analysis': """
                     INSERT INTO stations_data_quality 
-                    (code, date, quality_percentage, result, details) 
-                    VALUES (%s, %s, %s, %s, %s)
+                    (code, date, quality_percentage, result, details, channel_prefix) 
+                    VALUES (%s, %s, %s, %s, %s, %s)
                 """
             }
         }
@@ -364,21 +364,39 @@ class QCRepository:
             return True
         return False
 
-    def insert_qc_analysis_result(self, code, date, percqc, result, tipe, details):
-        """Inserts the final analysis result."""
-        query = self._get_query('insert_analysis')
+    # def insert_qc_analysis_result(self, code, date, percqc, result, tipe, details):
+    #     """Inserts the final analysis result."""
+    #     query = self._get_query('insert_analysis')
         
-        ket_str = ''
-        if isinstance(details, list) and details:
-            ket_str = ', '.join(map(str, details))
+    #     ket_str = ''
+    #     if isinstance(details, list) and details:
+    #         ket_str = ', '.join(map(str, details))
             
-        if self.db_type == 'mysql':
-            args = (code, date, percqc, result, tipe, ket_str)
-        else: # postgresql
-            args = (code, date, percqc, result, ket_str)
+    #     if self.db_type == 'mysql':
+    #         args = (code, date, percqc, result, tipe, ket_str)
+    #     else: # postgresql
+    #         args = (code, date, percqc, result, ket_str)
             
-        self.pool.execute(query, args=args, commit=True)
-        logger.debug(f"Inserted analysis result for {code} on {date}")
+    #     self.pool.execute(query, args=args, commit=True)
+    #     logger.debug(f"Inserted analysis result for {code} on {date}")
+
+
+    def insert_qc_analysis_result(self, code, date, percqc, result, tipe, details, channel_prefix=""):
+            """Inserts the final analysis result."""
+            query = self._get_query('insert_analysis')
+            
+            ket_str = ''
+            if isinstance(details, list) and details:
+                ket_str = ', '.join(map(str, details))
+                
+            if self.db_type == 'mysql':
+                args = (code, date, percqc, result, tipe, ket_str, channel_prefix)
+            else: # postgresql
+                args = (code, date, percqc, result, ket_str, channel_prefix)
+                
+            self.pool.execute(query, args=args, commit=True)
+            logger.debug(f"Inserted analysis result for {code} on {date} with prefix {channel_prefix}")
+
 
     # --- Station Management Methods ---
 
