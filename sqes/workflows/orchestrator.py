@@ -13,7 +13,8 @@ def run_processing_workflow(start_date_str: str, end_date_str: str,
                             ppsd: bool, mseed: bool, flush: bool, log_level: int,
                             log_file_path: str,
                             basic_config: Dict[str, Any],
-                            target_prefix: Optional[str] = None):
+                            target_prefix: Optional[str] = None,
+                            accelerometer: bool = False):
     """
     Orchestrates processing for all or specific stations over a date range.
     
@@ -69,7 +70,8 @@ def run_processing_workflow(start_date_str: str, end_date_str: str,
                 stations=stations,
                 network=network,
                 basic_config=basic_config,
-                target_prefix=target_prefix 
+                target_prefix=target_prefix,
+                accelerometer=accelerometer
             )
         except Exception as e:
             logger.error(f"Failed to process {date_str}: {e}. Skipping to next date.")

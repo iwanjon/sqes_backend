@@ -123,10 +123,18 @@ Examples:
     # --- Other Optional Flags ---
     
     parser.add_argument(
+            "--accelerometer",
+            action="store_true",
+            help="Optional: Enable special handling for accelerometer data in PPSD. use this when prefix is accelerometer type (HN for example)"
+        )
+        
+    
+    
+    parser.add_argument(
         "--prefix",
         type=str,
         default=None,
-        help="Optional: Process only a specific channel prefix (e.g., SH or HH). Case and whitespace insensitive."
+        help="Optional: Process only a specific channel prefix (e.g., SH or HH). Case and whitespace insensitive. Use --accelerometer when prefix is accelerometer type (HN for example)"
     )
     
     ########################################
@@ -367,7 +375,8 @@ if __name__ == "__main__":
             log_level=log_level,
             log_file_path=log_file_path,
             basic_config=basic_config,
-            target_prefix=args.prefix
+            target_prefix=args.prefix,
+            accelerometer=args.accelerometer
         )
             
     except Exception as e:

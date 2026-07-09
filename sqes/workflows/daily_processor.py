@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 
 def run_single_day(date_str: str, ppsd: bool, flush: bool, mseed: bool,
                     log_level: int, log_file_path: str, basic_config: Dict[str, Any],
-                    stations: Optional[list] = None, network: Optional[list] = None, target_prefix: Optional[str] = None):
+                    stations: Optional[list] = None, network: Optional[list] = None, 
+                    target_prefix: Optional[str] = None, accelerometer: bool = False):
     """
     Orchestrates the processing of stations for a single day.
     
@@ -155,7 +156,8 @@ def run_single_day(date_str: str, ppsd: bool, flush: bool, mseed: bool,
             init_args = (
                 db_creds, basic_config, log_level, log_file_path,
                 tgl, time0, time1, client_creds, output_paths,
-                ppsd, mseed, qc_thresholds , target_prefix
+                ppsd, mseed, qc_thresholds , target_prefix,
+                accelerometer
             )
             
             # --- RAM Manager Setup ---

@@ -148,6 +148,19 @@ CREATE TABLE stations_data_quality (
     PRIMARY KEY (id)
 );
 
+-- CREATE TABLE stations_data_quality (
+--     id integer NOT NULL DEFAULT nextval('stations_data_quality_id_seq'::regclass),
+--     date date,
+--     code text,
+--     quality_percentage numeric(5,2),
+--     result text,
+--     details text,
+--     channel_prefix text, -- NEW COLUMN ADDED HERE
+--     PRIMARY KEY (id)
+-- );
+
+-- COMMENT ON COLUMN stations_data_quality.channel_prefix IS 'Channel prefixes processed for this score (e.g., BH, HN)';
+
 COMMENT ON TABLE stations_data_quality IS 'Final quality scores and classifications per station per day';
 COMMENT ON COLUMN stations_data_quality.quality_percentage IS 'Overall quality score (0-100%)';
 COMMENT ON COLUMN stations_data_quality.result IS 'Quality classification: Baik/Cukup Baik/Buruk/Mati';
@@ -215,3 +228,6 @@ COMMENT ON COLUMN stations_visit.visit_count IS 'Number of visits in the specifi
 --
 ALTER SEQUENCE latency_id_seq OWNED BY stations_sensor_latency.id;
 ALTER SEQUENCE stations_data_quality_id_seq OWNED BY stations_data_quality.id;
+
+
+-- ALTER TABLE stations_data_quality ADD COLUMN channel_prefix text;

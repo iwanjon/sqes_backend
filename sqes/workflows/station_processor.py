@@ -48,7 +48,7 @@ GW_CONTEXT: Dict[str, Any] = {}
 
 def init_worker(db_credentials, basic_config, log_level, log_file_path,
                 tgl, time0, time1, client_credentials, output_paths,
-                pdf_trigger, mseed_trigger, qc_thresholds, target_prefix=None):
+                pdf_trigger, mseed_trigger, qc_thresholds, target_prefix=None, accelerometer=False):
     """
     Initializer for worker processes.
     Sets up DBPool, Logging, and Context once per process.
@@ -83,7 +83,8 @@ def init_worker(db_credentials, basic_config, log_level, log_file_path,
         'pdf_trigger': pdf_trigger,
         'mseed_trigger': mseed_trigger,
         'qc_thresholds': qc_thresholds,
-        'target_prefix': target_prefix
+        'target_prefix': target_prefix,
+        'accelerometer': accelerometer
     })
 
 
@@ -125,6 +126,7 @@ def process_station_data(sta_tuple):
         ###########################################
         # --- NEW PREFIX FILTERING LOGIC ---
         target_prefix = GW_CONTEXT.get('target_prefix')
+        is_accel = GW_CONTEXT.get('accelerometer', False)
         
         if target_prefix:
             # Remove spaces and force uppercase (e.g., " hH " -> "HH")
@@ -474,7 +476,8 @@ def process_station_data(sta_tuple):
                 sig, 
                 inv, 
                 plot_filename=plot_filename, 
-                npz_output_path=npz_path
+                npz_output_path=npz_path,
+                is_accelerometer=is_accel
             )
             signal.alarm(0)
         except TimeoutError:
