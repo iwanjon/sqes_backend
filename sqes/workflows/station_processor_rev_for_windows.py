@@ -325,10 +325,13 @@ def process_station_data(sta_tuple):
         try:
             signal.alarm(300) # 3 min timeout
             cha = tr.stats.channel
-            mseed_naming_code = f"{outputmseed}/{kode}_{cha[-1]}.mseed"
+            prefix = cha[:2] if isinstance(cha, str) and len(cha) >= 2 else ''
+            comp = cha[-1] if isinstance(cha, str) and len(cha) >= 1 else ''
+            prefix_part = f"{prefix}_" if prefix else ''
+            mseed_naming_code = f"{outputmseed}/{kode}_{prefix_part}{comp}.mseed"
             if mseed_trigger:
                 sig.write(mseed_naming_code)
-            sig.plot(outfile=f"{outputsignal}/{kode}_{cha[-1]}_signal.png")
+            sig.plot(outfile=f"{outputsignal}/{kode}_{prefix_part}{comp}_signal.png")
             signal.alarm(0)
         except Exception as e:
             signal.alarm(0)
@@ -370,7 +373,10 @@ def process_station_data(sta_tuple):
             
         # --- 6. Process PPSD Metrics ---
         logger.debug(f"{id_kode} Process PPSD metrics")
-        plot_filename = f"{outputPDF}/{kode}_{cha[-1]}_PDF.png"
+        prefix = cha[:2] if isinstance(cha, str) and len(cha) >= 2 else ''
+        comp = cha[-1] if isinstance(cha, str) and len(cha) >= 1 else ''
+        prefix_part = f"{prefix}_" if prefix else ''
+        plot_filename = f"{outputPDF}/{kode}_{prefix_part}{comp}_PDF.png"
         npz_path = outputPSD if pdf_trigger else ''
         
         final_metrics = None
