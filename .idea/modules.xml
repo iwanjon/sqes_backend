@@ -3,6 +3,10 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/../../PPSD_accel/.idea/PPSD_accel.iml" filepath="$PROJECT_DIR$/../../PPSD_accel/.idea/PPSD_accel.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../stasiun quality/Station-Quality/client/.idea/client.iml" filepath="$PROJECT_DIR$/../../stasiun quality/Station-Quality/client/.idea/client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../stasiun quality/Station-Quality/history_app/.idea/history_app.iml" filepath="$PROJECT_DIR$/../../stasiun quality/Station-Quality/history_app/.idea/history_app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../qc_avai/qc_avai/.idea/qc_avai.iml" filepath="$PROJECT_DIR$/../../qc_avai/qc_avai/.idea/qc_avai.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../stasiun quality/Station-Quality/server/.idea/server.iml" filepath="$PROJECT_DIR$/../../stasiun quality/Station-Quality/server/.idea/server.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/sqes_backend.iml" filepath="$PROJECT_DIR$/.idea/sqes_backend.iml" />
     </modules>
   </component>

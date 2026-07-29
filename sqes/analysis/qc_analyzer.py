@@ -595,3 +595,175 @@ def run_qc_analysis(
             time.sleep(0.5)
 
     time.sleep(0.5)
+    
+#
+# def run_qc_analysis_csv(station_code: str, tgl: str, tipe: str, component_metrics: list, thresholds: QCThresholds = DEFAULT_THRESHOLDS):
+#     """CSV-compatible QC Analysis that scores in-memory dictionaries."""
+#     prefix_groups = {}
+#     for row in component_metrics:
+#         komp = row['cha']
+#         prefix = komp[:2] if len(komp) >= 2 else "UK"
+#         if prefix not in prefix_groups:
+#             prefix_groups[prefix] = []
+#         prefix_groups[prefix].append(row)
+#
+#     results = []
+#     for prefix, dataqc in prefix_groups.items():
+#         percqc_list = []
+#         ket = []
+#
+#         for qc_row in dataqc:
+#             komp = qc_row['cha']
+#             rms = float(qc_row['rms'])
+#             ratioamp = float(qc_row['ratioamp'])
+#             avail = float(qc_row['psdata'])
+#             ngap1 = int(qc_row['ngap'])
+#             nover = int(qc_row['nover'])
+#             num_spikes = int(qc_row['num_spikes'])
+#             pct_above = float(qc_row['pctH'])
+#             pct_below = float(qc_row['pctL'])
+#             dcl = float(qc_row['dcl'])
+#             dcg = float(qc_row['dcg'])
+#
+#             # --- Validations & Grading Logic ---
+#             if rms > thresholds.rms_damaged_max:
+#                 rms_grade = calculate_metric_grade(abs(rms), thresholds.rms_limit, thresholds.rms_margin)
+#             else:
+#                 rms_grade = 0.0
+#
+#             if avail >= 100.0:
+#                 ngap1, avail = 0, 100.0
+#
+#             ratioamp_grade = calculate_metric_grade(ratioamp, thresholds.ratioamp_limit, thresholds.ratioamp_margin)
+#             ngap_grade = calculate_metric_grade(ngap1, thresholds.gap_limit, thresholds.gap_margin)
+#             nover_grade = calculate_metric_grade(nover, thresholds.overlap_limit, thresholds.overlap_margin)
+#             num_spikes_grade = calculate_metric_grade(num_spikes, thresholds.spike_limit, thresholds.spike_margin)
+#             pct_noise = 100.0 - pct_above - pct_below
+#
+#             # --- Scoring ---
+#             if avail <= 0.0:
+#                 botqc = 0.0
+#                 ket.append(f'Komponen {komp} Mati')
+#             elif dcg == 1 or dcl <= thresholds.dcl_dead:
+#                 botqc = 1.0
+#                 ket.append(f'Komponen {komp} tidak merespon getaran')
+#             elif rms < thresholds.rms_damaged_max and rms > 0:
+#                 botqc = 1.0
+#                 ket.append(f'Komponen {komp} Rusak')
+#             else:
+#                 botqc = (
+#                     thresholds.weight_noise * pct_noise +
+#                     thresholds.weight_availability * avail +
+#                     thresholds.weight_rms * rms_grade +
+#                     thresholds.weight_ratioamp * ratioamp_grade +
+#                     thresholds.weight_gaps * ngap_grade +
+#                     thresholds.weight_overlaps * nover_grade +
+#                     thresholds.weight_spikes * num_spikes_grade
+#                 )
+#                 warnings = determine_warning(komp, avail, pct_below, pct_above, ngap1, nover, num_spikes, thresholds)
+#                 if warnings:
+#                     ket.extend(warnings)
+#                     if thresholds.avail_fair <= avail < thresholds.avail_good:
+#                         botqc = min(botqc, thresholds.fair_max_score)
+#                     elif 0 < avail < thresholds.avail_fair:
+#                         botqc = min(botqc, thresholds.poor_max_score)
+#
+#             percqc_list.append(botqc)
+#
+#         # --- Aggregation ---
+#         score = 0.0
+#         if percqc_list:
+#             score = aggregate_station_score(percqc_list, 'p25')
+#             if 1.0 in percqc_list:
+#                 score = min(score, thresholds.poor_max_score)
+#
+#         results.append({
+#             'code': station_code,
+#             'date': tgl,
+#             'quality_percentage': round(float(score), 2),
+#             'result': check_qc(score),
+#             'details': ', '.join(ket),
+#             'channel_prefix': prefix
+#         })
+#
+#     return results
+
+
+def run_qc_analysis_csv(station_code: str, tgl: str, tipe: str, component_metrics: list,
+                        thresholds: QCThresholds = DEFAULT_THRESHOLDS):
+    """CSV-compatible QC Analysis that scores in-memory dictionaries per channel instead of per prefix."""
+    results = []
+
+    # Process each channel row individually
+    for qc_row in component_metrics:
+        komp = qc_row['cha']  # This is the full channel name (e.g., HNE, HNZ)
+        ket = []
+
+        rms = float(qc_row['rms'])
+        ratioamp = float(qc_row['ratioamp'])
+        avail = float(qc_row['psdata'])
+        ngap1 = int(qc_row['ngap'])
+        nover = int(qc_row['nover'])
+        num_spikes = int(qc_row['num_spikes'])
+        pct_above = float(qc_row['pctH'])
+        pct_below = float(qc_row['pctL'])
+        dcl = float(qc_row['dcl'])
+        dcg = float(qc_row['dcg'])
+
+        # --- Validations & Grading Logic ---
+        if rms > thresholds.rms_damaged_max:
+            rms_grade = calculate_metric_grade(abs(rms), thresholds.rms_limit, thresholds.rms_margin)
+        else:
+            rms_grade = 0.0
+
+        if avail >= 100.0:
+            ngap1, avail = 0, 100.0
+
+        ratioamp_grade = calculate_metric_grade(ratioamp, thresholds.ratioamp_limit, thresholds.ratioamp_margin)
+        ngap_grade = calculate_metric_grade(ngap1, thresholds.gap_limit, thresholds.gap_margin)
+        nover_grade = calculate_metric_grade(nover, thresholds.overlap_limit, thresholds.overlap_margin)
+        num_spikes_grade = calculate_metric_grade(num_spikes, thresholds.spike_limit, thresholds.spike_margin)
+        pct_noise = 100.0 - pct_above - pct_below
+
+        # --- Scoring ---
+        if avail <= 0.0:
+            botqc = 0.0
+            ket.append(f'Komponen {komp} Mati')
+        elif dcg == 1 or dcl <= thresholds.dcl_dead:
+            botqc = 1.0
+            ket.append(f'Komponen {komp} tidak merespon getaran')
+        elif rms < thresholds.rms_damaged_max and rms > 0:
+            botqc = 1.0
+            ket.append(f'Komponen {komp} Rusak')
+        else:
+            botqc = (
+                    thresholds.weight_noise * pct_noise +
+                    thresholds.weight_availability * avail +
+                    thresholds.weight_rms * rms_grade +
+                    thresholds.weight_ratioamp * ratioamp_grade +
+                    thresholds.weight_gaps * ngap_grade +
+                    thresholds.weight_overlaps * nover_grade +
+                    thresholds.weight_spikes * num_spikes_grade
+            )
+            warnings = determine_warning(komp, avail, pct_below, pct_above, ngap1, nover, num_spikes, thresholds)
+            if warnings:
+                ket.extend(warnings)
+                if thresholds.avail_fair <= avail < thresholds.avail_good:
+                    botqc = min(botqc, thresholds.fair_max_score)
+                elif 0 < avail < thresholds.avail_fair:
+                    botqc = min(botqc, thresholds.poor_max_score)
+
+        score = botqc
+
+        # Output the specific channel
+        results.append({
+            'code': station_code,
+            'date': tgl,
+            'quality_percentage': round(float(score), 2),
+            'result': check_qc(score),
+            # 'details': ', '.join(ket),
+            'details': ' | '.join(ket),  # <--- Now uses a pipe separator
+            'channel': komp  # Changed this to output the full channel code
+        })
+
+    return results

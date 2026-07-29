@@ -5,6 +5,10 @@
     <orderEntry type="jdk" jdkName="sqes_backend" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="PPSD_accel" />
+    <orderEntry type="module" module-name="history_app" />
+    <orderEntry type="module" module-name="client" />
+    <orderEntry type="module" module-name="server" />
+    <orderEntry type="module" module-name="qc_avai" />
   </component>
   <component name="PyDocumentationSettings">
     <option name="format" value="PLAIN" />

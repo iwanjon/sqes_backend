@@ -176,8 +176,8 @@ def process_ppsd_metrics(sig: Stream, inventory, plot_filename: str, npz_output_
         # 3. Get Percentile Data
         period, psd1 = ppsds.get_percentile() # type: ignore
         
-        print(period, "periode +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print(psd1, "psd1 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        # print(period, "periode +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        # print(psd1, "psd1 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         
         if is_accelerometer: 
           period, psd1,  NHNM, NLNM = periode_value_ppsd_accelerometer(period, psd1)
@@ -203,10 +203,10 @@ def process_ppsd_metrics(sig: Stream, inventory, plot_filename: str, npz_output_
             logger.warning(f"{_trace.id} No valid period data after model filtering")
             return None
 
-        print(period, "periode +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print(psd1, "PInd +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print(NHNM, "NHNM +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print(NLNM, "NLNM +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        # print(period, "periode +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        # print(psd1, "PInd +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        # print(NHNM, "NHNM +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        # print(NLNM, "NLNM +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
         # 4. Calculate Percentile Metrics
         dcg = _dead_channel_gsn(psd1, NLNM, period)
@@ -306,8 +306,8 @@ def periode_value_ppsd_accelerometer(periode_orig,psd1_orig):
     resampled_psd1 = np.interp(target_periods, periode_orig, psd1_orig)
 
     # 4. Print the results side-by-side
-    print("Target Period (s) | Resampled PSD (dB)")
-    print("-" * 38)
+    # print("Target Period (s) | Resampled PSD (dB)")
+    # print("-" * 38)
     for p, psd in zip(target_periods, resampled_psd1):
         print(f"{p:<17.2f} | {psd:.2f}")
     return target_periods, resampled_psd1, NHNM, NLNM

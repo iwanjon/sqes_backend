@@ -22,3 +22,5 @@ config/stations.cfg
 
 # add all sample
 !sample*
+
+files/*.csv
