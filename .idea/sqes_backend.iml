@@ -9,6 +9,7 @@
     <orderEntry type="module" module-name="client" />
     <orderEntry type="module" module-name="server" />
     <orderEntry type="module" module-name="qc_avai" />
+    <orderEntry type="module" module-name="notification_status" />
   </component>
   <component name="PyDocumentationSettings">
     <option name="format" value="PLAIN" />

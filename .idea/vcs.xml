@@ -2,6 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="D:/notification_status" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../../PPSD_accel" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../../qc_avai/qc_avai" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../../stasiun quality/Station-Quality" vcs="Git" />

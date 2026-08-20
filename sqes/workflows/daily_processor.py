@@ -435,66 +435,262 @@ import os
 # import pandas as pd
 from datetime import datetime
 
+#
+# def make_csv_writer_callback(output_dir="files"):
+#     """
+#     Creates a thread-safe callback function to append worker results
+#     to daily CSV files from the main orchestrator thread.
+#     """
+#     os.makedirs(output_dir, exist_ok=True)
+#
+#     def save_result(result_dict):
+#         if not result_dict:
+#             return
+#
+#         tgl = result_dict.get('tgl')
+#         if not tgl:
+#             return
+#
+#         # Capture the exact time this data is being written
+#         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+#
+#         # Write QC details (Append mode 'a')
+#         if result_dict.get('details'):
+#             df_det = pd.DataFrame(result_dict['details'])
+#             # Add the new column to the dataframe
+#             df_det['time_added'] = current_time
+#
+#             path_det = os.path.join(output_dir, f"qc_details_{tgl}.csv")
+#             # Write header only if the file doesn't exist yet
+#             df_det.to_csv(path_det, mode='a', header=not os.path.exists(path_det), index=False)
+#
+#         # Write final QC analysis (Append mode 'a')
+#         if result_dict.get('analysis'):
+#             df_ana = pd.DataFrame(result_dict['analysis'])
+#             # Add the new column to the dataframe
+#             df_ana['time_added'] = current_time
+#
+#             path_ana = os.path.join(output_dir, f"qc_analysis_{tgl}.csv")
+#             # Write header only if the file doesn't exist yet
+#             df_ana.to_csv(path_ana, mode='a', header=not os.path.exists(path_ana), index=False)
+#
+#     return save_result
+#
+#
+# def run_single_day(date_str: str, ppsd: bool, flush: bool, mseed: bool,
+#                     log_level: int, log_file_path: str, basic_config: Dict[str, Any],
+#                     stations: Optional[list] = None, network: Optional[list] = None,
+#                     target_prefix: Optional[str] = None, accelerometer: bool = False):
+#     """
+#     Orchestrates the processing of stations for a single day using CSV storage.
+#     """
+#     logger.info(f"--- Starting Daily Run for {date_str} (CSV Mode) ---")
+#     if stations:
+#         logger.info(f"--- Filtering for stations: {stations} ---")
+#     if network:
+#         logger.info(f"--- Filtering for network: {network} ---")
+#
+#     dt_start = datetime.now()
+#
+#     # --- 1. Setup ---
+#     try:
+#         # We still call this but ignore the DB credentials returned
+#         basic_config, _, client_creds, _ = get_common_configs(basic_config)
+#         time0, time1, tgl, tahun = setup_paths_and_times(date_str)
+#         output_paths = get_output_paths(basic_config, tahun, tgl, date_str)
+#     except Exception as e:
+#         logger.error(f"Failed to setup workflow for {date_str}: {e}")
+#         return
+#
+#     qc_thresholds = load_qc_thresholds()
+#     logger.debug("QC thresholds loaded for workflow")
+#
+#     # Initialize the CSV Repository
+#     repo = CSVRepository(stations_file="config/stations.csv", output_dir="files")
+#
+#     # --- 2. Flush (if requested) ---
+#     if flush:
+#         if stations or network:
+#             filter_msg = []
+#             if stations: filter_msg.append(f"stations: {', '.join(stations)}")
+#             if network: filter_msg.append(f"networks: {', '.join(network)}")
+#             logger.info(f"Flushing data for {tgl} ({', '.join(filter_msg)})...")
+#         else:
+#             logger.info(f"Flushing ALL data for {tgl}...")
+#
+#         repo.flush_daily_data(tgl, stations=stations, network=network)
+#         logger.info("Flush success!")
+#
+#     # --- 3. Get Data to Process ---
+#     if stations:
+#         logger.info(f"Loading {len(stations)} specific stations from CSV...")
+#         data = repo.get_station_tuples(stations, network=network)
+#     else:
+#         logger.info("Loading all stations from CSV...")
+#         data = repo.get_stations_to_process(tgl, network=network)
+#
+#     if not data:
+#         logger.info(f"No stations to process for {tgl}.")
+#         return
+#
+#     logger.info(f"Found {len(data)} stations to process.")
+#
+#     # --- 4. Run Multiprocessing ---
+#     # Shuffle the data to process in random order to distribute heavy stations
+#     random.shuffle(data)
+#
+#     # Inject Source Config into Tuples
+#     logger.info("Injecting source configuration into station tuples...")
+#     source_map = source_mapper.load_source_mapping()
+#     enriched_data = []
+#     for item in data:
+#         net, sta_code = item[0], item[1]
+#         config = source_map.get((net, sta_code))
+#         enriched_data.append(item + (config,))
+#     data = enriched_data
+#
+#     if basic_config.get('cpu_number_used'):
+#         processes_req = int(basic_config['cpu_number_used'])
+#     else:
+#         processes_req = calculate_process_count(len(data) // 35)
+#
+#     logger.info(f"Starting multiprocessing pool with {processes_req} workers.")
+#
+#     # Init args strictly match the updated init_worker signature (no db_creds)
+#     init_args = (
+#         basic_config, log_level, log_file_path,
+#         tgl, time0, time1, client_creds, output_paths,
+#         ppsd, mseed, qc_thresholds, target_prefix,
+#         accelerometer
+#     )
+#
+#     # Create the callback
+#     csv_writer_callback = make_csv_writer_callback(output_dir="files")
+#
+#     # RAM Manager Setup
+#     stations_ram_map = load_stations_config()
+#     ram_manager = RAMManager(basic_config, stations_ram_map)
+#     last_logged_concurrency = ram_manager.current_concurrency
+#
+#     with multiprocessing.Pool(processes=processes_req, initializer=init_worker, initargs=init_args) as pool:
+#
+#         active_tasks = []
+#         total_stations = len(data)
+#         submitted_count = 0
+#
+#         data_iterator = iter(data)
+#         pending_station = None
+#
+#         while submitted_count < total_stations or active_tasks:
+#             # 1. Clean up completed tasks
+#             active_tasks = [t for t in active_tasks if not t.ready()]
+#
+#             # 2. Try to soft start ramp up
+#             ram_manager.try_ramp_up_concurrency(processes_req)
+#
+#             # 3. Prepare Next Station
+#             if pending_station is None and submitted_count < total_stations:
+#                 try:
+#                     pending_station = next(data_iterator)
+#                 except StopIteration:
+#                     pass
+#
+#             # 4. Check RAM Safety
+#             can_submit = False
+#             if pending_station:
+#                 is_safe, msg = ram_manager.check_ram_metrics(pending_station)
+#                 if is_safe:
+#                     can_submit = True
+#                 else:
+#                     now = time.time()
+#                     if int(now) % 5 == 0:
+#                         logger.warning(msg + ". Waiting...")
+#
+#             # 5. Submit Logic
+#             if can_submit and len(active_tasks) < ram_manager.current_concurrency:
+#                 # Submit station and attach the callback to collect the returned dictionary
+#                 task = pool.apply_async(process_station_data, (pending_station,), callback=csv_writer_callback)
+#                 active_tasks.append(task)
+#
+#                 ram_manager.record_submission(pending_station)
+#                 pending_station = None
+#                 submitted_count += 1
+#             else:
+#                 time.sleep(0.5)
+#
+#             # --- Periodic Logging ---
+#             now = time.time()
+#             if int(now) % 10 == 0:
+#                 real_gb, phantom_gb, limit_gb = ram_manager.get_ram_info()
+#                 limit_str = f"{limit_gb:.1f}" if limit_gb > 0 else "Unset"
+#
+#                 curr = ram_manager.current_concurrency
+#                 trend = "(↑)" if curr > last_logged_concurrency else "(↓)" if curr < last_logged_concurrency else "(=)"
+#                 last_logged_concurrency = curr
+#
+#                 logger.debug(
+#                     f"Status: Active={len(active_tasks)}/{curr} {trend} "
+#                     f"(Target={processes_req}), "
+#                     f"RAM: Real={real_gb:.1f}G + Phantom={phantom_gb:.1f}G < Limit={limit_str}G"
+#                 )
+#
+#         # Wait for all workers to finish and callbacks to fire
+#         pool.close()
+#         pool.join()
+#
+#     logger.info("All processing and analysis for this run is complete.")
+#
+#     dt_end = datetime.now()
+#     logger.info(f"--- Daily Run for {date_str} Finished ({dt_end-dt_start}) ---")
+
 
 def make_csv_writer_callback(output_dir="files"):
-    """
-    Creates a thread-safe callback function to append worker results
-    to daily CSV files from the main orchestrator thread.
-    """
     os.makedirs(output_dir, exist_ok=True)
 
     def save_result(result_dict):
-        if not result_dict:
-            return
-
+        if not result_dict: return
         tgl = result_dict.get('tgl')
-        if not tgl:
-            return
+        if not tgl: return
 
-        # Capture the exact time this data is being written
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Write QC details (Append mode 'a')
+        # --- NEW: Write Availability File ---
+        if result_dict.get('availability_data'):
+            df_avail = pd.DataFrame(result_dict['availability_data'])
+            df_avail['time_added'] = current_time
+            path_avail = os.path.join(output_dir, f"availability_{tgl}.csv")
+            df_avail.to_csv(path_avail, mode='a', header=not os.path.exists(path_avail), index=False)
+
+        # Write normal QC details
         if result_dict.get('details'):
             df_det = pd.DataFrame(result_dict['details'])
-            # Add the new column to the dataframe
             df_det['time_added'] = current_time
-
             path_det = os.path.join(output_dir, f"qc_details_{tgl}.csv")
-            # Write header only if the file doesn't exist yet
             df_det.to_csv(path_det, mode='a', header=not os.path.exists(path_det), index=False)
 
-        # Write final QC analysis (Append mode 'a')
+        # Write normal QC analysis
         if result_dict.get('analysis'):
             df_ana = pd.DataFrame(result_dict['analysis'])
-            # Add the new column to the dataframe
             df_ana['time_added'] = current_time
-
             path_ana = os.path.join(output_dir, f"qc_analysis_{tgl}.csv")
-            # Write header only if the file doesn't exist yet
             df_ana.to_csv(path_ana, mode='a', header=not os.path.exists(path_ana), index=False)
 
     return save_result
 
 
 def run_single_day(date_str: str, ppsd: bool, flush: bool, mseed: bool,
-                    log_level: int, log_file_path: str, basic_config: Dict[str, Any],
-                    stations: Optional[list] = None, network: Optional[list] = None, 
-                    target_prefix: Optional[str] = None, accelerometer: bool = False):
-    """
-    Orchestrates the processing of stations for a single day using CSV storage.
-    """
+                   log_level: int, log_file_path: str, basic_config: Dict[str, Any],
+                   stations: Optional[list] = None, network: Optional[list] = None,
+                   target_prefix: Optional[str] = None, accelerometer: bool = False,
+                   availability: bool = False):  # <--- NEW
+
     logger.info(f"--- Starting Daily Run for {date_str} (CSV Mode) ---")
-    if stations:
-        logger.info(f"--- Filtering for stations: {stations} ---")
-    if network:
-        logger.info(f"--- Filtering for network: {network} ---")
-        
+    if availability:
+        logger.warning(f"--- ⚡ FAST AVAILABILITY ONLY MODE ACTIVATED ⚡ ---")
+
     dt_start = datetime.now()
-    
-    # --- 1. Setup ---
+
     try:
-        # We still call this but ignore the DB credentials returned
         basic_config, _, client_creds, _ = get_common_configs(basic_config)
         time0, time1, tgl, tahun = setup_paths_and_times(date_str)
         output_paths = get_output_paths(basic_config, tahun, tgl, date_str)
@@ -503,142 +699,72 @@ def run_single_day(date_str: str, ppsd: bool, flush: bool, mseed: bool,
         return
 
     qc_thresholds = load_qc_thresholds()
-    logger.debug("QC thresholds loaded for workflow")
-    
-    # Initialize the CSV Repository
     repo = CSVRepository(stations_file="config/stations.csv", output_dir="files")
 
-    # --- 2. Flush (if requested) ---
     if flush:
-        if stations or network:
-            filter_msg = []
-            if stations: filter_msg.append(f"stations: {', '.join(stations)}")
-            if network: filter_msg.append(f"networks: {', '.join(network)}")
-            logger.info(f"Flushing data for {tgl} ({', '.join(filter_msg)})...")
-        else:
-            logger.info(f"Flushing ALL data for {tgl}...")
-            
         repo.flush_daily_data(tgl, stations=stations, network=network)
-        logger.info("Flush success!")
+        # Note: We aren't deleting availability flush here to keep it simple, but you can manually delete it if needed.
 
-    # --- 3. Get Data to Process ---
     if stations:
-        logger.info(f"Loading {len(stations)} specific stations from CSV...")
-        data = repo.get_station_tuples(stations, network=network) 
+        data = repo.get_station_tuples(stations, network=network)
     else:
-        logger.info("Loading all stations from CSV...")
         data = repo.get_stations_to_process(tgl, network=network)
-    
+
     if not data:
         logger.info(f"No stations to process for {tgl}.")
         return
-        
-    logger.info(f"Found {len(data)} stations to process.")
 
-    # --- 4. Run Multiprocessing ---
-    # Shuffle the data to process in random order to distribute heavy stations
     random.shuffle(data)
-
-    # Inject Source Config into Tuples
-    logger.info("Injecting source configuration into station tuples...")
     source_map = source_mapper.load_source_mapping()
-    enriched_data = []
-    for item in data:
-        net, sta_code = item[0], item[1]
-        config = source_map.get((net, sta_code))
-        enriched_data.append(item + (config,))
+    enriched_data = [item + (source_map.get((item[0], item[1])),) for item in data]
     data = enriched_data
 
-    if basic_config.get('cpu_number_used'):
-        processes_req = int(basic_config['cpu_number_used'])
-    else:
-        processes_req = calculate_process_count(len(data) // 35)
-        
-    logger.info(f"Starting multiprocessing pool with {processes_req} workers.")
+    processes_req = int(basic_config['cpu_number_used']) if basic_config.get(
+        'cpu_number_used') else calculate_process_count(len(data) // 35)
 
-    # Init args strictly match the updated init_worker signature (no db_creds)
+    # --- NEW: PASS AVAILABILITY TO WORKERS ---
     init_args = (
         basic_config, log_level, log_file_path,
         tgl, time0, time1, client_creds, output_paths,
         ppsd, mseed, qc_thresholds, target_prefix,
-        accelerometer
+        accelerometer, availability
     )
-    
-    # Create the callback
+
     csv_writer_callback = make_csv_writer_callback(output_dir="files")
-    
-    # RAM Manager Setup
     stations_ram_map = load_stations_config()
     ram_manager = RAMManager(basic_config, stations_ram_map)
-    last_logged_concurrency = ram_manager.current_concurrency
-    
+
     with multiprocessing.Pool(processes=processes_req, initializer=init_worker, initargs=init_args) as pool:
-        
-        active_tasks = []
-        total_stations = len(data)
-        submitted_count = 0
-        
+        active_tasks, submitted_count, total_stations = [], 0, len(data)
         data_iterator = iter(data)
-        pending_station = None 
-        
+        pending_station = None
+
         while submitted_count < total_stations or active_tasks:
-            # 1. Clean up completed tasks
             active_tasks = [t for t in active_tasks if not t.ready()]
-            
-            # 2. Try to soft start ramp up
             ram_manager.try_ramp_up_concurrency(processes_req)
 
-            # 3. Prepare Next Station
             if pending_station is None and submitted_count < total_stations:
                 try:
                     pending_station = next(data_iterator)
                 except StopIteration:
                     pass
-                    
-            # 4. Check RAM Safety
+
             can_submit = False
             if pending_station:
                 is_safe, msg = ram_manager.check_ram_metrics(pending_station)
-                if is_safe:
-                    can_submit = True
-                else:
-                    now = time.time()
-                    if int(now) % 5 == 0:
-                        logger.warning(msg + ". Waiting...")
-            
-            # 5. Submit Logic
+                if is_safe: can_submit = True
+
             if can_submit and len(active_tasks) < ram_manager.current_concurrency:
-                # Submit station and attach the callback to collect the returned dictionary
                 task = pool.apply_async(process_station_data, (pending_station,), callback=csv_writer_callback)
                 active_tasks.append(task)
-                
                 ram_manager.record_submission(pending_station)
                 pending_station = None
                 submitted_count += 1
             else:
                 time.sleep(0.5)
 
-            # --- Periodic Logging ---
-            now = time.time()
-            if int(now) % 10 == 0:
-                real_gb, phantom_gb, limit_gb = ram_manager.get_ram_info()
-                limit_str = f"{limit_gb:.1f}" if limit_gb > 0 else "Unset"
-                
-                curr = ram_manager.current_concurrency
-                trend = "(↑)" if curr > last_logged_concurrency else "(↓)" if curr < last_logged_concurrency else "(=)"
-                last_logged_concurrency = curr
-
-                logger.debug(
-                    f"Status: Active={len(active_tasks)}/{curr} {trend} "
-                    f"(Target={processes_req}), "
-                    f"RAM: Real={real_gb:.1f}G + Phantom={phantom_gb:.1f}G < Limit={limit_str}G"
-                )
-
-        # Wait for all workers to finish and callbacks to fire
         pool.close()
         pool.join()
 
-    logger.info("All processing and analysis for this run is complete.")
-
     dt_end = datetime.now()
-    logger.info(f"--- Daily Run for {date_str} Finished ({dt_end-dt_start}) ---")
+    logger.info(f"--- Daily Run for {date_str} Finished ({dt_end - dt_start}) ---")
