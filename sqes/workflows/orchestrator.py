@@ -139,7 +139,8 @@ def run_processing_workflow(start_date_str: str, end_date_str: str,
                             basic_config: Dict[str, Any],
                             target_prefix: Optional[str] = None,
                             accelerometer: bool = False,
-                            availability: bool = False):  # <--- NEW
+                            availability: bool = False,
+                            head_only: bool = False):     # <--- NEW):  # <--- NEW
     """Orchestrates processing for all or specific stations over a date range."""
     logger.info(f"--- Starting Main Workflow from {start_date_str} to {end_date_str} ---")
 
@@ -172,7 +173,8 @@ def run_processing_workflow(start_date_str: str, end_date_str: str,
                 basic_config=basic_config,
                 target_prefix=target_prefix,
                 accelerometer=accelerometer,
-                availability=availability  # <--- NEW
+                availability=availability,  # <--- NEW
+                head_only=head_only  # <--- NEW
             )
         except Exception as e:
             logger.error(f"Failed to process {date_str}: {e}. Skipping to next date.")

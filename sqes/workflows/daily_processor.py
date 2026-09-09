@@ -682,11 +682,22 @@ def run_single_day(date_str: str, ppsd: bool, flush: bool, mseed: bool,
                    log_level: int, log_file_path: str, basic_config: Dict[str, Any],
                    stations: Optional[list] = None, network: Optional[list] = None,
                    target_prefix: Optional[str] = None, accelerometer: bool = False,
-                   availability: bool = False):  # <--- NEW
-
+                   availability: bool = False, head_only: bool = False):  # <--- NEW
+    """
+    Orchestrates the processing of stations for a single day using CSV storage.
+    """
     logger.info(f"--- Starting Daily Run for {date_str} (CSV Mode) ---")
-    if availability:
-        logger.warning(f"--- ⚡ FAST AVAILABILITY ONLY MODE ACTIVATED ⚡ ---")
+
+    # --- LOG THE MODE ---
+    if availability and head_only:
+        logger.warning(f"--- ⚡ ULTRA-FAST HEADER-ONLY AVAILABILITY MODE ACTIVATED ⚡ ---")
+    elif availability:
+        logger.warning(f"--- FAST AVAILABILITY ONLY MODE ACTIVATED ---")
+
+    if stations:
+        logger.info(f"--- Filtering for stations: {stations} ---")
+    if network:
+        logger.info(f"--- Filtering for network: {network} ---")
 
     dt_start = datetime.now()
 
@@ -699,43 +710,73 @@ def run_single_day(date_str: str, ppsd: bool, flush: bool, mseed: bool,
         return
 
     qc_thresholds = load_qc_thresholds()
+    logger.debug("QC thresholds loaded for workflow")
+
     repo = CSVRepository(stations_file="config/stations.csv", output_dir="files")
 
     if flush:
+        if stations or network:
+            filter_msg = []
+            if stations: filter_msg.append(f"stations: {', '.join(stations)}")
+            if network: filter_msg.append(f"networks: {', '.join(network)}")
+            logger.info(f"Flushing data for {tgl} ({', '.join(filter_msg)})...")
+        else:
+            logger.info(f"Flushing ALL data for {tgl}...")
+
         repo.flush_daily_data(tgl, stations=stations, network=network)
-        # Note: We aren't deleting availability flush here to keep it simple, but you can manually delete it if needed.
+        logger.info("Flush success!")
 
     if stations:
+        logger.info(f"Loading {len(stations)} specific stations from CSV...")
         data = repo.get_station_tuples(stations, network=network)
     else:
+        logger.info("Loading all stations from CSV...")
         data = repo.get_stations_to_process(tgl, network=network)
 
     if not data:
         logger.info(f"No stations to process for {tgl}.")
         return
 
+    logger.info(f"Found {len(data)} stations to process.")
+
     random.shuffle(data)
+
+    logger.info("Injecting source configuration into station tuples...")
     source_map = source_mapper.load_source_mapping()
-    enriched_data = [item + (source_map.get((item[0], item[1])),) for item in data]
+    enriched_data = []
+    for item in data:
+        net, sta_code = item[0], item[1]
+        config = source_map.get((net, sta_code))
+        enriched_data.append(item + (config,))
     data = enriched_data
 
-    processes_req = int(basic_config['cpu_number_used']) if basic_config.get(
-        'cpu_number_used') else calculate_process_count(len(data) // 35)
+    if basic_config.get('cpu_number_used'):
+        processes_req = int(basic_config['cpu_number_used'])
+    else:
+        processes_req = calculate_process_count(len(data) // 35)
 
-    # --- NEW: PASS AVAILABILITY TO WORKERS ---
+    logger.info(f"Starting multiprocessing pool with {processes_req} workers.")
+
+    # --- ADD THE TWO NEW VARIABLES HERE ---
     init_args = (
         basic_config, log_level, log_file_path,
         tgl, time0, time1, client_creds, output_paths,
         ppsd, mseed, qc_thresholds, target_prefix,
-        accelerometer, availability
+        accelerometer, availability, head_only
     )
 
     csv_writer_callback = make_csv_writer_callback(output_dir="files")
+
     stations_ram_map = load_stations_config()
     ram_manager = RAMManager(basic_config, stations_ram_map)
+    last_logged_concurrency = ram_manager.current_concurrency
 
     with multiprocessing.Pool(processes=processes_req, initializer=init_worker, initargs=init_args) as pool:
-        active_tasks, submitted_count, total_stations = [], 0, len(data)
+
+        active_tasks = []
+        total_stations = len(data)
+        submitted_count = 0
+
         data_iterator = iter(data)
         pending_station = None
 
@@ -752,19 +793,42 @@ def run_single_day(date_str: str, ppsd: bool, flush: bool, mseed: bool,
             can_submit = False
             if pending_station:
                 is_safe, msg = ram_manager.check_ram_metrics(pending_station)
-                if is_safe: can_submit = True
+                if is_safe:
+                    can_submit = True
+                else:
+                    now = time.time()
+                    if int(now) % 5 == 0:
+                        logger.warning(msg + ". Waiting...")
 
             if can_submit and len(active_tasks) < ram_manager.current_concurrency:
                 task = pool.apply_async(process_station_data, (pending_station,), callback=csv_writer_callback)
                 active_tasks.append(task)
+
                 ram_manager.record_submission(pending_station)
                 pending_station = None
                 submitted_count += 1
             else:
                 time.sleep(0.5)
 
+            now = time.time()
+            if int(now) % 10 == 0:
+                real_gb, phantom_gb, limit_gb = ram_manager.get_ram_info()
+                limit_str = f"{limit_gb:.1f}" if limit_gb > 0 else "Unset"
+
+                curr = ram_manager.current_concurrency
+                trend = "(↑)" if curr > last_logged_concurrency else "(↓)" if curr < last_logged_concurrency else "(=)"
+                last_logged_concurrency = curr
+
+                logger.debug(
+                    f"Status: Active={len(active_tasks)}/{curr} {trend} "
+                    f"(Target={processes_req}), "
+                    f"RAM: Real={real_gb:.1f}G + Phantom={phantom_gb:.1f}G < Limit={limit_str}G"
+                )
+
         pool.close()
         pool.join()
+
+    logger.info("All processing and analysis for this run is complete.")
 
     dt_end = datetime.now()
     logger.info(f"--- Daily Run for {date_str} Finished ({dt_end - dt_start}) ---")

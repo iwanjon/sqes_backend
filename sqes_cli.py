@@ -223,7 +223,8 @@ def _setup_arguments():
     # --- NEW: AVAILABILITY FLAG ---
     parser.add_argument("--availability", action="store_true",
                         help="FAST MODE: Only process data availability and output to availability_YYYY-MM-DD.csv")
-
+    parser.add_argument("--head_only", action="store_true",
+                        help="Use alongside --availability to read only MiniSEED headers from local SDS archives for massive speed/RAM improvements.")
     return parser
 
 
@@ -354,7 +355,8 @@ if __name__ == "__main__":
             basic_config=basic_config,
             target_prefix=args.prefix,
             accelerometer=args.accelerometer,
-            availability = args.availability
+            availability = args.availability,
+            head_only = args.head_only  # <--- NEW
         )
 
     except Exception as e:
